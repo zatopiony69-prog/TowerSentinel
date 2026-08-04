@@ -48,7 +48,9 @@ gh release verify-asset v1.0.0 TowerSentinel.dll `
 | `debug` | `false` | Enables EXILED debug logging. |
 | `turret_damage` | `100` | Heavy-laser damage. |
 | `minigun_damage` | `15` | Damage per retaliatory minigun shot. |
-| `tower_activation_radius` | `15` | Tutorial proximity required for deployment. |
+| `tower_activation_radius` | `15` | Eligible-player proximity required for deployment and protection. |
+| `any_role_can_activate_tower` | `true` | Allows any alive role inside the activation radius to deploy the tower and receive its protection; when false, only Tutorial can. |
+| `can_target_tutorial_attackers` | `false` | Allows retaliation to punish Tutorial attackers. |
 | `shooting_detection_range` | `200` | Maximum range for a shot to strike the tower. |
 | `grenade_detection_radius` | `8` | Explosion overlap radius. |
 | `retaliation_cooldown` | `0.75` | Minimum delay between attacks. |

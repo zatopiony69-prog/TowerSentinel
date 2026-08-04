@@ -62,22 +62,27 @@ namespace TowerSentinel
 
                 if (_sentinelController == null) yield break;
 
-                bool isTutorialInTower = false;
+                Config config = Plugin.Instance.Config;
+                bool isActivatorInTower = false;
                 foreach (var player in Player.List)
                 {
-                    if (player.IsConnected && player.IsAlive && player.Role.Type == RoleTypeId.Tutorial)
+                    if (player.IsConnected
+                        && player.IsAlive
+                        && Guardrails.CanActivateTower(
+                            player.Role.Type == RoleTypeId.Tutorial,
+                            config.AnyRoleCanActivateTower))
                     {
                         if (Guardrails.IsWithinRadius(
                             (player.Position - _adminTowerPosition).sqrMagnitude,
-                            Plugin.Instance.Config.TowerActivationRadius))
+                            config.TowerActivationRadius))
                         {
-                            isTutorialInTower = true;
+                            isActivatorInTower = true;
                             break;
                         }
                     }
                 }
 
-                if (isTutorialInTower)
+                if (isActivatorInTower)
                 {
                     if (!_sentinelController.IsActive)
                     {
@@ -97,22 +102,37 @@ namespace TowerSentinel
         public void OnShooting(ShootingEventArgs ev)
         {
             if (!ev.IsAllowed || _sentinelController == null || !_sentinelController.IsActive || ev.Player == null) return;
-            if (ev.Player.Role.Type == RoleTypeId.Tutorial) return;
+
+            Config config = Plugin.Instance.Config;
+            if (!Guardrails.CanTargetAttacker(
+                ev.Player.Role.Type == RoleTypeId.Tutorial,
+                config.CanTargetTutorialAttackers)) return;
 
             Vector3 camPos = ev.Player.CameraTransform.position;
-            if (_sentinelController.WasTowerHit(camPos, ev.Direction, Plugin.Instance.Config.ShootingDetectionRange, ev.Player))
+            if (_sentinelController.WasTowerHit(camPos, ev.Direction, config.ShootingDetectionRange, ev.Player))
                 _sentinelController.RetaliateMinigun(ev.Player);
         }
 
         public void OnHurting(HurtingEventArgs ev)
         {
-            if (ev.IsAllowed && ev.Amount > 0f && _sentinelController != null && _sentinelController.IsActive && ev.Player != null && ev.Player.Role.Type == RoleTypeId.Tutorial)
+            if (ev.IsAllowed && ev.Amount > 0f && _sentinelController != null && _sentinelController.IsActive && ev.Player != null)
             {
+                Config config = Plugin.Instance.Config;
+                if (!Guardrails.CanActivateTower(
+                    ev.Player.Role.Type == RoleTypeId.Tutorial,
+                    config.AnyRoleCanActivateTower)) return;
+
                 if (Guardrails.IsWithinRadius(
                     (ev.Player.Position - _adminTowerPosition).sqrMagnitude,
-                    Plugin.Instance.Config.TowerActivationRadius))
+                    config.TowerActivationRadius))
                 {
-                    if (ev.Attacker != null && ev.Attacker != ev.Player && ev.Attacker.IsConnected && ev.Attacker.IsAlive)
+                    if (ev.Attacker != null
+                        && ev.Attacker != ev.Player
+                        && ev.Attacker.IsConnected
+                        && ev.Attacker.IsAlive
+                        && Guardrails.CanTargetAttacker(
+                            ev.Attacker.Role.Type == RoleTypeId.Tutorial,
+                            config.CanTargetTutorialAttackers))
                         _sentinelController.RetaliateLaser(ev.Attacker);
                 }
             }
@@ -122,9 +142,15 @@ namespace TowerSentinel
         {
             if (!ev.IsAllowed || _sentinelController == null || !_sentinelController.IsActive) return;
 
-            if (ev.Player != null && ev.Player.IsConnected && ev.Player.IsAlive && ev.Player.Role.Type != RoleTypeId.Tutorial)
+            Config config = Plugin.Instance.Config;
+            if (ev.Player != null
+                && ev.Player.IsConnected
+                && ev.Player.IsAlive
+                && Guardrails.CanTargetAttacker(
+                    ev.Player.Role.Type == RoleTypeId.Tutorial,
+                    config.CanTargetTutorialAttackers))
             {
-                if (_sentinelController.IsExplosionTouchingTower(ev.Position, Plugin.Instance.Config.GrenadeDetectionRadius))
+                if (_sentinelController.IsExplosionTouchingTower(ev.Position, config.GrenadeDetectionRadius))
                     _sentinelController.RetaliateLaser(ev.Player);
             }
         }

@@ -19,6 +19,16 @@ namespace TowerSentinel
             return radius > 0f && squaredDistance <= radius * radius;
         }
 
+        public static bool CanActivateTower(bool isTutorial, bool anyRoleCanActivateTower)
+        {
+            return anyRoleCanActivateTower || isTutorial;
+        }
+
+        public static bool CanTargetAttacker(bool isTutorial, bool canTargetTutorialAttackers)
+        {
+            return !isTutorial || canTargetTutorialAttackers;
+        }
+
         public static bool CanStartRetaliation(bool isActive, bool isFiring, bool hasValidTarget, float currentTime, float nextAllowedTime)
         {
             return isActive && !isFiring && hasValidTarget && currentTime >= nextAllowedTime;

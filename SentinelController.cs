@@ -480,7 +480,12 @@ namespace TowerSentinel
 
         private static bool IsValidTarget(Player target)
         {
-            return target != null && target.IsConnected && target.IsAlive && target.Role.Type != PlayerRoles.RoleTypeId.Tutorial;
+            return target != null
+                && target.IsConnected
+                && target.IsAlive
+                && Guardrails.CanTargetAttacker(
+                    target.Role.Type == PlayerRoles.RoleTypeId.Tutorial,
+                    Plugin.Instance.Config.CanTargetTutorialAttackers);
         }
 
         private void EndRetaliation(int generation)

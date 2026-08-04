@@ -14,8 +14,14 @@ namespace TowerSentinel
         [Description("The damage dealt by the laser turret.")]
         public float TurretDamage { get; set; } = 100f;
 
-        [Description("How close a Tutorial player must be to the configured tower position to deploy the sentinel (in meters).")]
+        [Description("How close an eligible player must be to the configured tower position to deploy the sentinel (in meters).")]
         public float TowerActivationRadius { get; set; } = 15f;
+
+        [Description("Whether any alive role can activate and receive protection from the tower while inside its activation radius. When false, only Tutorial players can activate and receive protection.")]
+        public bool AnyRoleCanActivateTower { get; set; } = true;
+
+        [Description("Whether Tutorial players who attack the tower or a protected occupant can be targeted by retaliation.")]
+        public bool CanTargetTutorialAttackers { get; set; } = false;
 
         [Description("The maximum distance at which a shot can hit the tower (in meters).")]
         public float ShootingDetectionRange { get; set; } = 200f;

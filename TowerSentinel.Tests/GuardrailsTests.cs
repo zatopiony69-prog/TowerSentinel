@@ -38,6 +38,24 @@ namespace TowerSentinel.Tests
         }
 
         [TestMethod]
+        public void CanActivateTowerAllowsAnyRoleByDefaultPolicy()
+        {
+            Assert.IsTrue(Guardrails.CanActivateTower(false, true));
+            Assert.IsTrue(Guardrails.CanActivateTower(true, true));
+            Assert.IsTrue(Guardrails.CanActivateTower(true, false));
+            Assert.IsFalse(Guardrails.CanActivateTower(false, false));
+        }
+
+        [TestMethod]
+        public void CanTargetAttackerKeepsTutorialExemptByDefaultPolicy()
+        {
+            Assert.IsTrue(Guardrails.CanTargetAttacker(false, false));
+            Assert.IsTrue(Guardrails.CanTargetAttacker(false, true));
+            Assert.IsTrue(Guardrails.CanTargetAttacker(true, true));
+            Assert.IsFalse(Guardrails.CanTargetAttacker(true, false));
+        }
+
+        [TestMethod]
         public void CanStartRetaliationRequiresAllSafetyConditions()
         {
             Assert.IsTrue(Guardrails.CanStartRetaliation(true, false, true, 10f, 10f));
