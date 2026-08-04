@@ -1,0 +1,134 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Cache dedicated-server references
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}\scpsl
+          key: scpsl-windows-996560-v1
+
+      - name: Install current dedicated-server references
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $steamCmdRoot = Join-Path $env:RUNNER_TEMP 'steamcmd'
+          $serverRoot = Join-Path $env:RUNNER_TEMP 'scpsl'
+          New-Item -ItemType Directory -Path $steamCmdRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path $serverRoot -Force | Out-Null
+
+          $archive = Join-Path $env:RUNNER_TEMP 'steamcmd.zip'
+          Invoke-WebRequest 'https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip' -OutFile $archive
+          Expand-Archive $archive -DestinationPath $steamCmdRoot -Force
+
+          $steamCmd = Join-Path $steamCmdRoot 'steamcmd.exe'
+          & $steamCmd '+force_install_dir' $serverRoot '+login' 'anonymous' '+app_update' '996560' 'validate' '+quit'
+          if ($LASTEXITCODE -ne 0) {
+            throw "SteamCMD failed with exit code $LASTEXITCODE."
+          }
+
+          $managedPath = Join-Path $serverRoot 'SCPSL_Data\Managed'
+          if (-not (Test-Path (Join-Path $managedPath 'UnityEngine.CoreModule.dll'))) {
+            throw 'SCP:SL managed reference assemblies were not installed.'
+          }
+
+          "GAME_MANAGED_PATH=$managedPath" >> $env:GITHUB_ENV
+
+      - name: Restore locked dependencies
+        shell: pwsh
+        run: |
+          dotnet restore TowerSentinel.csproj --locked-mode
+          dotnet restore TowerSentinel.Tests\TowerSentinel.Tests.csproj --locked-mode
+
+      - name: Build Release DLL
+        shell: pwsh
+        run: dotnet build TowerSentinel.csproj -c Release --no-restore -p:GameManagedPath="$env:GAME_MANAGED_PATH"
+
+      - name: Run safety-policy tests
+        shell: pwsh
+        run: dotnet test TowerSentinel.Tests\TowerSentinel.Tests.csproj -c Release --no-restore
+
+      - name: Audit release artifact
+        shell: pwsh
+        run: |
+          $releaseDirectory = Join-Path $PWD 'bin\Release'
+          $dll = Join-Path $releaseDirectory 'TowerSentinel.dll'
+          if (-not (Test-Path $dll)) {
+            throw 'Release DLL was not produced.'
+          }
+          if (Get-ChildItem $releaseDirectory -Filter '*.pdb') {
+            throw 'Release output unexpectedly contains a PDB.'
+          }
+
+          $hash = Get-FileHash $dll -Algorithm SHA256
+          "TowerSentinel.dll SHA-256: ``$($hash.Hash)``" >> $env:GITHUB_STEP_SUMMARY
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            [xml]$project = Get-Content (Join-Path $PWD 'TowerSentinel.csproj')
+            $version = [string]$project.Project.PropertyGroup.Version
+            if ($env:GITHUB_REF_NAME -ne "v$version") {
+              throw "Tag $env:GITHUB_REF_NAME does not match project version v$version."
+            }
+          }
+
+      - name: Upload reviewed DLL
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: TowerSentinel-release
+          path: bin\Release\TowerSentinel.dll
+          if-no-files-found: error
+
+  release:
+    name: publish immutable release
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download reviewed DLL
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: TowerSentinel-release
+
+      - name: Publish release and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum TowerSentinel.dll > TowerSentinel.dll.sha256
+          gh release create "$GITHUB_REF_NAME" \
+            TowerSentinel.dll \
+            TowerSentinel.dll.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --title "TowerSentinel $GITHUB_REF_NAME"

@@ -1,0 +1,21 @@
+# Build output
+**/bin/
+**/obj/
+artifacts/
+TestResults/
+*.pdb
+*.nupkg
+
+# IDE and user-specific state
+.vs/
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini

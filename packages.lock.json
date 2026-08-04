@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "dependencies": {
+    ".NETFramework,Version=v4.8": {
+      "ExMod.Exiled": {
+        "type": "Direct",
+        "requested": "[9.14.2, )",
+        "resolved": "9.14.2",
+        "contentHash": "VGveRNhYtj2C7X2PNQwvFfSjb9pdtDl5JvDQ5ea5lo/2GXzRkUQK3rwoeoBGt7q7hMihng8E31mwYAU7LiqljA=="
+      }
+    }
+  }
+}
