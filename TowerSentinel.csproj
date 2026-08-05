@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>TowerSentinel</AssemblyName>
+    <RootNamespace>TowerSentinel</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>zatopiony69-prog</Authors>
+    <Company>zatopiony69-prog</Company>
+    <Copyright>Copyright (C) 2026 zatopiony69-prog</Copyright>
+    <Description>Defensive admin-tower sentinel plugin for SCP: Secret Laboratory using EXILED.</Description>
+    <RepositoryUrl>https://github.com/zatopiony69-prog/TowerSentinel</RepositoryUrl>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <CodePage>65001</CodePage>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <Deterministic>true</Deterministic>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+    <DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+    <DeployPlugin Condition="'$(DeployPlugin)' == ''">false</DeployPlugin>
+    <GameManagedPath Condition="'$(GameManagedPath)' == '' and Exists('..\SCPSL_Data\Managed')">..\SCPSL_Data\Managed</GameManagedPath>
+    <ExiledPluginsPath Condition="'$(ExiledPluginsPath)' == ''">$(AppData)\EXILED\Plugins</ExiledPluginsPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="TowerSentinel.Tests\**\*.cs" />
+    <PackageReference Include="ExMod.Exiled" Version="9.14.2" PrivateAssets="all" />
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(GameManagedPath)\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Mirror">
+      <HintPath>$(GameManagedPath)\Mirror.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>$(GameManagedPath)\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateGameReferences" BeforeTargets="ResolveReferences" Condition="!Exists('$(GameManagedPath)\UnityEngine.CoreModule.dll')">
+    <Error Text="GameManagedPath must point to the SCP:SL SCPSL_Data\Managed directory." />
+  </Target>
+
+  <Target Name="CopyToPlugins" AfterTargets="Build" Condition="'$(DeployPlugin)' == 'true' and Exists('$(ExiledPluginsPath)')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ExiledPluginsPath)" />
+    <Message Text="Copied $(AssemblyName).dll -&gt; $(ExiledPluginsPath)" Importance="high" />
+  </Target>
+</Project>
