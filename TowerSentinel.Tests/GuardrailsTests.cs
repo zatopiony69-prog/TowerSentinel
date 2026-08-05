@@ -30,6 +30,41 @@ namespace TowerSentinel.Tests
         }
 
         [TestMethod]
+        [DataRow(null)]
+        [DataRow("")]
+        [DataRow("   ")]
+        public void NormalizeTextReplacesMissingValues(string value)
+        {
+            string result = Guardrails.NormalizeText(value, "Heavy Laser", out bool changed);
+
+            Assert.AreEqual("Heavy Laser", result);
+            Assert.IsTrue(changed);
+        }
+
+        [TestMethod]
+        public void NormalizeTextTrimsButKeepsConfiguredValue()
+        {
+            string trimmed = Guardrails.NormalizeText("Dual Minigun", "Fallback", out bool unchanged);
+            Assert.AreEqual("Dual Minigun", trimmed);
+            Assert.IsFalse(unchanged);
+
+            string padded = Guardrails.NormalizeText("  Dual Minigun  ", "Fallback", out bool changed);
+            Assert.AreEqual("Dual Minigun", padded);
+            Assert.IsTrue(changed);
+        }
+
+        [TestMethod]
+        public void CanSendHitMessageRespectsTypeContentAndCooldown()
+        {
+            Assert.IsTrue(Guardrails.CanSendHitMessage(NotificationType.Hint, "Hit", 10f, 10f));
+            Assert.IsTrue(Guardrails.CanSendHitMessage(NotificationType.Broadcast, "Hit", 11f, 10f));
+            Assert.IsFalse(Guardrails.CanSendHitMessage(NotificationType.None, "Hit", 10f, 10f));
+            Assert.IsFalse(Guardrails.CanSendHitMessage(NotificationType.Hint, " ", 10f, 10f));
+            Assert.IsFalse(Guardrails.CanSendHitMessage(NotificationType.Hint, null!, 10f, 10f));
+            Assert.IsFalse(Guardrails.CanSendHitMessage(NotificationType.Hint, "Hit", 9.99f, 10f));
+        }
+
+        [TestMethod]
         public void IsWithinRadiusIncludesBoundaryAndRejectsOutsidePoint()
         {
             Assert.IsTrue(Guardrails.IsWithinRadius(225f, 15f));

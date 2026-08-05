@@ -11,7 +11,7 @@ namespace TowerSentinel
         [Description("Whether or not to show debug messages.")]
         public bool Debug { get; set; } = false;
 
-        [Description("The damage dealt by the laser turret.")]
+        [Description("The damage dealt by a single heavy-laser shot.")]
         public float TurretDamage { get; set; } = 100f;
 
         [Description("How close an eligible player must be to the configured tower position to deploy the sentinel (in meters).")]
@@ -64,5 +64,41 @@ namespace TowerSentinel
 
         [Description("The Y offset to apply to the entire structure (push it up or down).")]
         public float StructureYOffset { get; set; } = -1.5f;
+
+        [Description("The death cause recorded when the heavy laser kills a player.")]
+        public string LaserDeathCause { get; set; } = "Heavy Laser";
+
+        [Description("The death cause recorded when the minigun kills a player.")]
+        public string MinigunDeathCause { get; set; } = "Dual Minigun";
+
+        [Description("How a player is told that the heavy laser hit them. Valid values: None, Hint, Broadcast.")]
+        public NotificationType LaserHitNotification { get; set; } = NotificationType.Hint;
+
+        [Description("The message shown to a player who was hit by the heavy laser.")]
+        public string LaserHitMessage { get; set; } = "<color=#ff3030>The tower's heavy laser burned you.</color>";
+
+        [Description("How long the heavy-laser message stays on screen (in seconds).")]
+        public float LaserHitMessageDuration { get; set; } = 4f;
+
+        [Description("How a player is told that the minigun hit them. Valid values: None, Hint, Broadcast.")]
+        public NotificationType MinigunHitNotification { get; set; } = NotificationType.Hint;
+
+        [Description("The message shown to a player who was hit by the minigun.")]
+        public string MinigunHitMessage { get; set; } = "<color=#ff9030>The tower's miniguns are tearing you apart.</color>";
+
+        [Description("How long the minigun message stays on screen (in seconds).")]
+        public float MinigunHitMessageDuration { get; set; } = 3f;
+
+        [Description("How a player is told that a cannon grenade was fired back at them. Valid values: None, Hint, Broadcast.")]
+        public NotificationType CannonHitNotification { get; set; } = NotificationType.Hint;
+
+        [Description("The message shown to a player who was hit by a cannon grenade.")]
+        public string CannonHitMessage { get; set; } = "<color=#ff30c0>The tower returned your grenade.</color>";
+
+        [Description("How long the cannon message stays on screen (in seconds).")]
+        public float CannonHitMessageDuration { get; set; } = 4f;
+
+        [Description("The minimum delay between two hit messages shown to the same player (in seconds).")]
+        public float HitMessageCooldown { get; set; } = 2f;
     }
 }

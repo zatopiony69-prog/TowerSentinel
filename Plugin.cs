@@ -74,6 +74,22 @@ namespace TowerSentinel
             Config.AdminTowerOffsetX = Normalize(nameof(Config.AdminTowerOffsetX), Config.AdminTowerOffsetX, -500f, 500f, 39f);
             Config.AdminTowerOffsetY = Normalize(nameof(Config.AdminTowerOffsetY), Config.AdminTowerOffsetY, -500f, 500f, 14f);
             Config.AdminTowerOffsetZ = Normalize(nameof(Config.AdminTowerOffsetZ), Config.AdminTowerOffsetZ, -500f, 500f, -32f);
+            Config.LaserHitMessageDuration = Normalize(nameof(Config.LaserHitMessageDuration), Config.LaserHitMessageDuration, 0.5f, 60f, 4f);
+            Config.MinigunHitMessageDuration = Normalize(nameof(Config.MinigunHitMessageDuration), Config.MinigunHitMessageDuration, 0.5f, 60f, 3f);
+            Config.CannonHitMessageDuration = Normalize(nameof(Config.CannonHitMessageDuration), Config.CannonHitMessageDuration, 0.5f, 60f, 4f);
+            Config.HitMessageCooldown = Normalize(nameof(Config.HitMessageCooldown), Config.HitMessageCooldown, 0f, 60f, 2f);
+            Config.LaserDeathCause = NormalizeText(nameof(Config.LaserDeathCause), Config.LaserDeathCause, "Heavy Laser");
+            Config.MinigunDeathCause = NormalizeText(nameof(Config.MinigunDeathCause), Config.MinigunDeathCause, "Dual Minigun");
+        }
+
+        private static string NormalizeText(string name, string value, string fallback)
+        {
+            string normalized = Guardrails.NormalizeText(value, fallback, out bool changed);
+
+            if (changed)
+                Log.Warn($"Invalid {name} value '{value}' was replaced with '{normalized}'.");
+
+            return normalized;
         }
 
         private static float Normalize(string name, float value, float minimum, float maximum, float fallback)

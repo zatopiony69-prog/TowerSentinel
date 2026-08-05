@@ -37,6 +37,7 @@ namespace TowerSentinel
         private readonly List<Primitive> _temporaryPrimitives = new List<Primitive>();
         private readonly List<ToyLight> _temporaryLights = new List<ToyLight>();
         private readonly Dictionary<ushort, CannonGrenade> _cannonGrenades = new Dictionary<ushort, CannonGrenade>();
+        private readonly Dictionary<uint, float> _nextHitMessageTimes = new Dictionary<uint, float>();
 
         private readonly Vector3 _adminTowerCenter;
         private Primitive _turretBase;
@@ -89,6 +90,7 @@ namespace TowerSentinel
             foreach (CannonGrenade cannonGrenade in new List<CannonGrenade>(_cannonGrenades.Values))
                 SafeDestroy(cannonGrenade.Projectile);
             _cannonGrenades.Clear();
+            _nextHitMessageTimes.Clear();
 
             foreach (Primitive primitive in _temporaryPrimitives.ToArray())
                 SafeDestroy(primitive);
@@ -247,7 +249,15 @@ namespace TowerSentinel
             ev.TargetsToAffect.Clear();
 
             if (IsValidTarget(cannonGrenade.Target))
+            {
+                Config config = Plugin.Instance.Config;
                 ev.TargetsToAffect.Add(cannonGrenade.Target);
+                NotifyHit(
+                    cannonGrenade.Target,
+                    config.CannonHitNotification,
+                    config.CannonHitMessage,
+                    config.CannonHitMessageDuration);
+            }
 
             if (Plugin.Instance.Config.Debug)
             {
@@ -478,7 +488,11 @@ namespace TowerSentinel
                 }
 
                 if (canDamage && CanContinueRetaliation(target, generation))
-                    target.Hurt(Plugin.Instance.Config.TurretDamage, "Heavy Laser");
+                {
+                    Config config = Plugin.Instance.Config;
+                    target.Hurt(config.TurretDamage, config.LaserDeathCause);
+                    NotifyHit(target, config.LaserHitNotification, config.LaserHitMessage, config.LaserHitMessageDuration);
+                }
 
                 yield return Timing.WaitForSeconds(0.4f);
             }
@@ -521,7 +535,11 @@ namespace TowerSentinel
                 Vector3 startPosition = activeBarrel.Position;
                 bool canDamage = TryGetImpact(target, startPosition, out Vector3 impactPosition);
                 if (canDamage && CanContinueRetaliation(target, generation))
-                    target.Hurt(Plugin.Instance.Config.MinigunDamage, "Dual Minigun");
+                {
+                    Config config = Plugin.Instance.Config;
+                    target.Hurt(config.MinigunDamage, config.MinigunDeathCause);
+                    NotifyHit(target, config.MinigunHitNotification, config.MinigunHitMessage, config.MinigunHitMessageDuration);
+                }
 
                 CreateBeam(startPosition, impactPosition, 0.08f, 0.03f, new Color(1f, 0.5f, 0f, 0.4f), Color.yellow, out tracerOuter, out tracerInner);
                 tracerLight = TrackLight(ToyLight.Create(impactPosition));
@@ -693,6 +711,30 @@ namespace TowerSentinel
             {
                 if (towerCollider != null)
                     Physics.IgnoreCollision(projectileCollider, towerCollider, true);
+            }
+        }
+
+        private void NotifyHit(Player target, NotificationType notification, string message, float duration)
+        {
+            if (target == null || !target.IsConnected || target.IsHost)
+                return;
+
+            _nextHitMessageTimes.TryGetValue(target.NetId, out float nextAllowedTime);
+            if (!Guardrails.CanSendHitMessage(notification, message, Time.time, nextAllowedTime))
+                return;
+
+            _nextHitMessageTimes[target.NetId] = Time.time + Plugin.Instance.Config.HitMessageCooldown;
+
+            try
+            {
+                if (notification == NotificationType.Broadcast)
+                    target.Broadcast((ushort)Mathf.Clamp(Mathf.CeilToInt(duration), 1, 300), message);
+                else
+                    target.ShowHint(message, duration);
+            }
+            catch (Exception exception)
+            {
+                Log.Debug($"Failed to show a hit message: {exception.Message}");
             }
         }
 

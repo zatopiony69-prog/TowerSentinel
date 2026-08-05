@@ -19,6 +19,8 @@ grenades that touch the structure, and shots that actually strike it.
   can see the explosion but are excluded from its damage and status effects.
 - Native hitscan-layer targeting: walls, doors, glass, and players block
   retaliation without false impacts from non-physical room/culling barriers.
+- Optional per-weapon hit messages, shown as a hint or a broadcast and
+  rate-limited per player, plus configurable laser and minigun death causes.
 - A single rate-limited firing routine prevents coroutine and network-toy spam.
 - Deterministic Surface-room-relative placement with configurable offsets.
 - Complete round-end, disable, animation, temporary-effect, and failure cleanup.
@@ -65,10 +67,30 @@ gh release verify-asset v1.0.0 TowerSentinel.dll `
 | `admin_tower_offset_x/y/z` | `39 / 14 / -32` | Surface-room-local tower position. |
 | `barricade_width/depth/height` | `10 / 10 / 3.4` | Barricade dimensions. |
 | `turret_offset_x/z` | `-4.5 / 0` | Turret position relative to the structure. |
-| `structure_y_offset` | `-1.5` | Vertical adjustment for the whole structure. |
+| `structure_y_offset` | `-1.5` | Vertical adjustment for the whole structure. Raises or lowers the barricades, roof, and turret together. |
+| `laser_death_cause` | `Heavy Laser` | Death cause recorded for heavy-laser kills. |
+| `minigun_death_cause` | `Dual Minigun` | Death cause recorded for minigun kills. |
+| `laser_hit_notification` | `Hint` | How a laser hit is announced to the victim: `None`, `Hint`, or `Broadcast`. |
+| `laser_hit_message` | *(see config)* | Message shown after a laser hit. |
+| `laser_hit_message_duration` | `4` | Seconds the laser message stays on screen. |
+| `minigun_hit_notification` | `Hint` | How a minigun hit is announced to the victim. |
+| `minigun_hit_message` | *(see config)* | Message shown after a minigun hit. |
+| `minigun_hit_message_duration` | `3` | Seconds the minigun message stays on screen. |
+| `cannon_hit_notification` | `Hint` | How a cannon hit is announced to the victim. |
+| `cannon_hit_message` | *(see config)* | Message shown when a returned cannon grenade detonates. |
+| `cannon_hit_message_duration` | `4` | Seconds the cannon message stays on screen. |
+| `hit_message_cooldown` | `2` | Minimum delay between two hit messages for the same player. |
+
+The roof sits `barricade_height` above the structure origin, so raising or
+lowering `barricade_height` retunes the ceiling on its own, while
+`structure_y_offset` moves the finished structure up or down as a whole.
+
+Hit messages accept rich text, so colours and formatting tags work in every
+message. Setting a notification to `None`, or clearing its message, disables
+that announcement.
 
 Invalid, non-finite, negative, or extreme values are clamped to safe limits and
-reported in the server log.
+reported in the server log. Empty death causes fall back to their defaults.
 
 ## Building
 

@@ -21,6 +21,21 @@ namespace TowerSentinel
             return normalized;
         }
 
+        public static string NormalizeText(string value, string fallback, out bool changed)
+        {
+            string normalized = string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+            changed = !string.Equals(normalized, value, StringComparison.Ordinal);
+            return normalized;
+        }
+
+        public static bool CanSendHitMessage(NotificationType notification, string message, float currentTime, float nextAllowedTime)
+        {
+            return notification != NotificationType.None
+                && !string.IsNullOrWhiteSpace(message)
+                && currentTime >= nextAllowedTime;
+        }
+
         public static bool IsWithinRadius(float squaredDistance, float radius)
         {
             return radius > 0f && squaredDistance <= radius * radius;
