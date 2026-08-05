@@ -4,14 +4,15 @@
 [![license: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
 TowerSentinel is an EXILED plugin for SCP: Secret Laboratory that deploys a
-networked defensive structure around the Surface admin tower while a Tutorial
+networked defensive structure around the Surface admin tower while an eligible
 player is present. The turret retaliates against direct attacks, grenades that
 touch the structure, and shots that actually strike it.
 
 ## Features
 
 - Animated barricades and a compound laser/minigun turret.
-- Obstruction-aware targeting: walls and players block shots and retaliation.
+- Native hitscan-layer targeting: walls, doors, glass, and players block
+  retaliation without false impacts from non-physical room/culling barriers.
 - A single rate-limited firing routine prevents coroutine and network-toy spam.
 - Deterministic Surface-room-relative placement with configurable offsets.
 - Complete round-end, disable, animation, temporary-effect, and failure cleanup.

@@ -10,6 +10,8 @@ namespace TowerSentinel
 {
     public class SentinelController
     {
+        private static readonly int BeamCollisionMask = CreateBeamCollisionMask();
+
         private sealed class TurretPart
         {
             public Primitive Primitive;
@@ -515,7 +517,7 @@ namespace TowerSentinel
                 startPosition,
                 direction / distance,
                 distance,
-                Physics.DefaultRaycastLayers,
+                BeamCollisionMask,
                 QueryTriggerInteraction.Ignore);
 
             Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
@@ -525,7 +527,20 @@ namespace TowerSentinel
                     continue;
 
                 impactPosition = hit.point;
-                return Player.Get(hit.collider) == target;
+                Player hitPlayer = Player.Get(hit.collider);
+                if (hitPlayer == target)
+                    return true;
+
+                if (Plugin.Instance.Config.Debug)
+                {
+                    string layerName = LayerMask.LayerToName(hit.collider.gameObject.layer);
+                    string blocker = hitPlayer == null
+                        ? hit.collider.gameObject.name
+                        : $"player {hitPlayer.Nickname}";
+                    Log.Debug($"Retaliation toward {target.Nickname} was blocked by {blocker} on layer '{layerName}' at {hit.point}.");
+                }
+
+                return false;
             }
 
             return true;
@@ -642,6 +657,15 @@ namespace TowerSentinel
         private static Vector3 TargetPoint(Player target)
         {
             return target.Position + Vector3.up;
+        }
+
+        private static int CreateBeamCollisionMask()
+        {
+            // Match SCP:SL's native hitscan layers. Physics.DefaultRaycastLayers also
+            // includes Room/culling colliders such as the invisible Surface barrier,
+            // which ordinary bullets do not treat as an impact surface.
+            int mask = LayerMask.GetMask("Default", "Hitbox", "Glass", "CCTV", "Door");
+            return mask != 0 ? mask : Physics.DefaultRaycastLayers;
         }
 
         private static bool IsToyAlive(AdminToy toy)
