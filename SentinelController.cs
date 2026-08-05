@@ -14,6 +14,9 @@ namespace TowerSentinel
     public class SentinelController
     {
         private static readonly int BeamCollisionMask = CreateBeamCollisionMask();
+        private const float CannonMuzzleOffset = 2.2f;
+        private const float CannonLaunchClearanceRadius = 0.35f;
+        private const float CannonMaximumClearanceOffset = 5f;
 
         private sealed class TurretPart
         {
@@ -364,7 +367,7 @@ namespace TowerSentinel
             _minigunBarrelLeft = AddPart(PrimitiveType.Cylinder, new Vector3(-0.95f, 0f, 1.5f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.3f, 2.2f, 0.3f), Color.black);
             _minigunBarrelRight = AddPart(PrimitiveType.Cylinder, new Vector3(0.95f, 0f, 1.5f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.3f, 2.2f, 0.3f), Color.black);
             AddPart(PrimitiveType.Cube, new Vector3(0f, 0.85f, 0.55f), Quaternion.identity, new Vector3(0.9f, 0.65f, 0.9f), new Color(0.12f, 0.18f, 0.22f));
-            _cannonBarrel = AddPart(PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 1.65f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.65f, 2.8f, 0.65f), new Color(0.08f, 0.1f, 0.12f));
+            _cannonBarrel = AddPart(PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 1.65f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.65f, 1.4f, 0.65f), new Color(0.08f, 0.1f, 0.12f));
             AddPart(PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 3.1f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.85f, 0.25f, 0.85f), new Color(0.45f, 0.2f, 0.05f));
 
             _turretLight = ToyLight.Create(_turretPivot + new Vector3(0f, 2f, 0f));
@@ -585,8 +588,13 @@ namespace TowerSentinel
                     return false;
 
                 AimTurret(Quaternion.LookRotation(directionAtFire));
-                Vector3 muzzlePosition = _cannonBarrel.Position
-                    + (_currentTurretRotation * Vector3.forward * 1.65f);
+                Vector3 launchDirection = directionAtFire.normalized;
+                if (!TryFindCannonLaunchPosition(launchDirection, out Vector3 muzzlePosition))
+                {
+                    Log.Warn("Cannon launch was cancelled because no collision-free muzzle position was available.");
+                    return false;
+                }
+
                 float flightTime = Plugin.Instance.Config.CannonFlightTime;
                 Vector3 destination = target.Position + (Vector3.up * 0.25f);
                 Vector3 launchVelocity = ((destination - muzzlePosition) / flightTime)
@@ -611,6 +619,8 @@ namespace TowerSentinel
                     return false;
                 }
 
+                IgnoreTowerCollisions(projectile);
+
                 _cannonGrenades[projectile.Serial] = new CannonGrenade
                 {
                     Projectile = projectile,
@@ -624,7 +634,7 @@ namespace TowerSentinel
                 projectile.Activate();
 
                 if (Plugin.Instance.Config.Debug)
-                    Log.Debug($"Cannon launched {grenadeType} at {target.Nickname} with fuse {flightTime:0.00}s.");
+                    Log.Debug($"Cannon launched {grenadeType} at {target.Nickname} from {muzzlePosition} with velocity {launchVelocity} and fuse {flightTime:0.00}s.");
 
                 return true;
             }
@@ -638,6 +648,51 @@ namespace TowerSentinel
 
                 Log.Error($"Cannon launch failed: {exception}");
                 return false;
+            }
+        }
+
+        private bool TryFindCannonLaunchPosition(Vector3 launchDirection, out Vector3 launchPosition)
+        {
+            for (float offset = CannonMuzzleOffset; offset <= CannonMaximumClearanceOffset; offset += 0.25f)
+            {
+                launchPosition = _cannonBarrel.Position + (launchDirection * offset);
+                Collider[] overlaps = Physics.OverlapSphere(
+                    launchPosition,
+                    CannonLaunchClearanceRadius,
+                    BeamCollisionMask,
+                    QueryTriggerInteraction.Ignore);
+
+                if (overlaps.Length == 0)
+                    return true;
+            }
+
+            launchPosition = Vector3.zero;
+            return false;
+        }
+
+        private void IgnoreTowerCollisions(Projectile projectile)
+        {
+            Collider[] projectileColliders = projectile.GameObject.GetComponentsInChildren<Collider>(true);
+            foreach (Collider projectileCollider in projectileColliders)
+            {
+                foreach (Primitive barricade in _barricades)
+                    IgnorePrimitiveCollision(projectileCollider, barricade);
+
+                IgnorePrimitiveCollision(projectileCollider, _turretBase);
+                foreach (TurretPart part in _compoundParts)
+                    IgnorePrimitiveCollision(projectileCollider, part.Primitive);
+            }
+        }
+
+        private static void IgnorePrimitiveCollision(Collider projectileCollider, Primitive primitive)
+        {
+            if (projectileCollider == null || !IsToyAlive(primitive))
+                return;
+
+            foreach (Collider towerCollider in primitive.GameObject.GetComponentsInChildren<Collider>(true))
+            {
+                if (towerCollider != null)
+                    Physics.IgnoreCollision(projectileCollider, towerCollider, true);
             }
         }
 
