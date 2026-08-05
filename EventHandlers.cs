@@ -4,8 +4,12 @@ using Exiled.API.Enums;
 using Exiled.API.Features;
 using Exiled.Events.EventArgs.Player;
 using Exiled.Events.EventArgs.Map;
+using InventorySystem.Items.Jailbird;
+using InventorySystem.Items.MicroHID.Modules;
+using LabApi.Events.Arguments.PlayerEvents;
 using MEC;
 using PlayerRoles;
+using PlayerStatsSystem;
 using UnityEngine;
 
 namespace TowerSentinel
@@ -110,7 +114,52 @@ namespace TowerSentinel
 
             Vector3 camPos = ev.Player.CameraTransform.position;
             if (_sentinelController.WasTowerHit(camPos, ev.Direction, config.ShootingDetectionRange, ev.Player))
-                _sentinelController.RetaliateMinigun(ev.Player);
+            {
+                if (ev.Firearm.Type == ItemType.ParticleDisruptor)
+                    _sentinelController.RetaliateLaser(ev.Player);
+                else
+                    _sentinelController.RetaliateMinigun(ev.Player);
+            }
+        }
+
+        public void OnUsingMicroHidEnergy(UsingMicroHIDEnergyEventArgs ev)
+        {
+            if (!ev.IsAllowed
+                || ev.Drain <= 0f
+                || ev.MicroHID == null
+                || ev.MicroHID.State != MicroHidPhase.Firing
+                || !CanTarget(ev.Player)) return;
+
+            float firingRange = 10f;
+            if (ev.MicroHID.TryGetLastFireController(out FiringModeControllerModule firingController))
+                firingRange = firingController.FiringRange;
+
+            bool towerHit = ev.MicroHID.LastFiringMode == MicroHidFiringMode.BrokenFire
+                ? _sentinelController.IsTowerWithinSphere(ev.Player.Position, firingRange)
+                : _sentinelController.WasTowerHit(
+                    ev.Player.CameraTransform.position,
+                    ev.Player.CameraTransform.forward,
+                    firingRange,
+                    ev.Player);
+
+            if (towerHit)
+                _sentinelController.RetaliateLaser(ev.Player);
+        }
+
+        public void OnProcessedJailbirdMessage(PlayerProcessedJailbirdMessageEventArgs ev)
+        {
+            if (ev == null || ev.Message != JailbirdMessageType.AttackPerformed || ev.Player == null) return;
+
+            Player attacker = Player.Get(ev.Player.ReferenceHub);
+            if (!CanTarget(attacker)) return;
+
+            const float hitregOffset = 1.5f;
+            const float hitregRadius = 1.5f;
+            Vector3 detectionCenter = attacker.CameraTransform.position
+                + (attacker.CameraTransform.forward * hitregOffset);
+
+            if (_sentinelController.IsTowerWithinSphere(detectionCenter, hitregRadius))
+                _sentinelController.RetaliateLaser(attacker);
         }
 
         public void OnHurting(HurtingEventArgs ev)
@@ -133,14 +182,39 @@ namespace TowerSentinel
                         && Guardrails.CanTargetAttacker(
                             ev.Attacker.Role.Type == RoleTypeId.Tutorial,
                             config.CanTargetTutorialAttackers))
-                        _sentinelController.RetaliateLaser(ev.Attacker);
+                    {
+                        DamageType damageType = ev.DamageHandler.Type;
+                        bool hasExplosionType = ev.DamageHandler.CustomBase.Is(
+                            out ExplosionDamageHandler explosionDamageHandler);
+                        bool isGrenadeDamage = hasExplosionType
+                            && explosionDamageHandler.ExplosionType == ExplosionType.Grenade;
+                        bool isSpecialExplosion = hasExplosionType
+                            && (explosionDamageHandler.ExplosionType == ExplosionType.Disruptor
+                                || explosionDamageHandler.ExplosionType == ExplosionType.Jailbird);
+                        DirectRetaliation retaliation = Guardrails.SelectDirectRetaliation(
+                            isGrenadeDamage,
+                            damageType == DamageType.ParticleDisruptor
+                                || damageType == DamageType.Jailbird
+                                || damageType == DamageType.MicroHid
+                                || isSpecialExplosion);
+
+                        if (retaliation == DirectRetaliation.Laser)
+                            _sentinelController.RetaliateLaser(ev.Attacker);
+                        else if (retaliation == DirectRetaliation.Minigun)
+                            _sentinelController.RetaliateMinigun(ev.Attacker);
+                    }
                 }
             }
         }
 
         public void OnExplodingGrenade(ExplodingGrenadeEventArgs ev)
         {
-            if (!ev.IsAllowed || _sentinelController == null || !_sentinelController.IsActive) return;
+            if (_sentinelController == null || !_sentinelController.IsActive) return;
+
+            if (_sentinelController.TryIsolateCannonExplosion(ev))
+                return;
+
+            if (!ev.IsAllowed) return;
 
             Config config = Plugin.Instance.Config;
             if (ev.Player != null
@@ -151,8 +225,20 @@ namespace TowerSentinel
                     config.CanTargetTutorialAttackers))
             {
                 if (_sentinelController.IsExplosionTouchingTower(ev.Position, config.GrenadeDetectionRadius))
-                    _sentinelController.RetaliateLaser(ev.Player);
+                    _sentinelController.RetaliateCannon(ev.Player, ev.Projectile.ProjectileType);
             }
+        }
+
+        private bool CanTarget(Player player)
+        {
+            return _sentinelController != null
+                && _sentinelController.IsActive
+                && player != null
+                && player.IsConnected
+                && player.IsAlive
+                && Guardrails.CanTargetAttacker(
+                    player.Role.Type == RoleTypeId.Tutorial,
+                    Plugin.Instance.Config.CanTargetTutorialAttackers);
         }
     }
 }

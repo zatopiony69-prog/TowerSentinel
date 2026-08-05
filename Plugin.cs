@@ -1,5 +1,6 @@
 using System;
 using Exiled.API.Features;
+using LabApiPlayerEvents = LabApi.Events.Handlers.PlayerEvents;
 using PlayerEvents = Exiled.Events.Handlers.Player;
 using MapEvents = Exiled.Events.Handlers.Map;
 using ServerEvents = Exiled.Events.Handlers.Server;
@@ -25,6 +26,8 @@ namespace TowerSentinel
 
             PlayerEvents.Shooting += _eventHandlers.OnShooting;
             PlayerEvents.Hurting += _eventHandlers.OnHurting;
+            PlayerEvents.UsingMicroHIDEnergy += _eventHandlers.OnUsingMicroHidEnergy;
+            LabApiPlayerEvents.ProcessedJailbirdMessage += _eventHandlers.OnProcessedJailbirdMessage;
             MapEvents.ExplodingGrenade += _eventHandlers.OnExplodingGrenade;
             ServerEvents.RoundStarted += _eventHandlers.OnRoundStarted;
             ServerEvents.RoundEnded += _eventHandlers.OnRoundEnded;
@@ -38,6 +41,8 @@ namespace TowerSentinel
             {
                 PlayerEvents.Shooting -= _eventHandlers.OnShooting;
                 PlayerEvents.Hurting -= _eventHandlers.OnHurting;
+                PlayerEvents.UsingMicroHIDEnergy -= _eventHandlers.OnUsingMicroHidEnergy;
+                LabApiPlayerEvents.ProcessedJailbirdMessage -= _eventHandlers.OnProcessedJailbirdMessage;
                 MapEvents.ExplodingGrenade -= _eventHandlers.OnExplodingGrenade;
                 ServerEvents.RoundStarted -= _eventHandlers.OnRoundStarted;
                 ServerEvents.RoundEnded -= _eventHandlers.OnRoundEnded;
@@ -58,6 +63,7 @@ namespace TowerSentinel
             Config.TowerActivationRadius = Normalize(nameof(Config.TowerActivationRadius), Config.TowerActivationRadius, 0.5f, 100f, 15f);
             Config.ShootingDetectionRange = Normalize(nameof(Config.ShootingDetectionRange), Config.ShootingDetectionRange, 1f, 500f, 200f);
             Config.GrenadeDetectionRadius = Normalize(nameof(Config.GrenadeDetectionRadius), Config.GrenadeDetectionRadius, 0.5f, 50f, 8f);
+            Config.CannonFlightTime = Normalize(nameof(Config.CannonFlightTime), Config.CannonFlightTime, 0.5f, 5f, 1.75f);
             Config.RetaliationCooldown = Normalize(nameof(Config.RetaliationCooldown), Config.RetaliationCooldown, 0.05f, 30f, 0.75f);
             Config.BarricadeWidth = Normalize(nameof(Config.BarricadeWidth), Config.BarricadeWidth, 1f, 50f, 10f);
             Config.BarricadeDepth = Normalize(nameof(Config.BarricadeDepth), Config.BarricadeDepth, 1f, 50f, 10f);

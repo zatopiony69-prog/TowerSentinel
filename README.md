@@ -5,12 +5,18 @@
 
 TowerSentinel is an EXILED plugin for SCP: Secret Laboratory that deploys a
 networked defensive structure around the Surface admin tower while an eligible
-player is present. The turret retaliates against direct attacks, grenades that
-touch the structure, and shots that actually strike it.
+player is present. The turret retaliates against direct attacks, HE/flash
+grenades that touch the structure, and shots that actually strike it.
 
 ## Features
 
-- Animated barricades and a compound laser/minigun turret.
+- Animated barricades and a compound minigun, heavy-laser, and grenade-cannon
+  turret.
+- Weapon-matched retaliation: ordinary attacks use the minigun; Particle
+  Disruptor, Jailbird, and Micro H.I.D. attacks use the heavy laser; HE and
+  flashbang attacks launch the same grenade type back from the cannon.
+- Cannon explosions are restricted to their original attacker. Other players
+  can see the explosion but are excluded from its damage and status effects.
 - Native hitscan-layer targeting: walls, doors, glass, and players block
   retaliation without false impacts from non-physical room/culling barriers.
 - A single rate-limited firing routine prevents coroutine and network-toy spam.
@@ -54,6 +60,7 @@ gh release verify-asset v1.0.0 TowerSentinel.dll `
 | `can_target_tutorial_attackers` | `false` | Allows retaliation to punish Tutorial attackers. |
 | `shooting_detection_range` | `200` | Maximum range for a shot to strike the tower. |
 | `grenade_detection_radius` | `8` | Explosion overlap radius. |
+| `cannon_flight_time` | `1.75` | Ballistic cannon-grenade flight time and fuse. |
 | `retaliation_cooldown` | `0.75` | Minimum delay between attacks. |
 | `admin_tower_offset_x/y/z` | `39 / 14 / -32` | Surface-room-local tower position. |
 | `barricade_width/depth/height` | `10 / 10 / 3.4` | Barricade dimensions. |

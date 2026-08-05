@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Exiled.API.Enums;
 using Exiled.API.Features;
+using Exiled.API.Features.Pickups.Projectiles;
 using Exiled.API.Features.Toys;
+using Exiled.Events.EventArgs.Map;
 using MEC;
 using UnityEngine;
 using ToyLight = Exiled.API.Features.Toys.Light;
@@ -20,16 +23,24 @@ namespace TowerSentinel
             public Vector3 TargetScale;
         }
 
+        private sealed class CannonGrenade
+        {
+            public Projectile Projectile;
+            public Player Target;
+        }
+
         private readonly List<Primitive> _barricades = new List<Primitive>();
         private readonly List<TurretPart> _compoundParts = new List<TurretPart>();
         private readonly List<Primitive> _temporaryPrimitives = new List<Primitive>();
         private readonly List<ToyLight> _temporaryLights = new List<ToyLight>();
+        private readonly Dictionary<ushort, CannonGrenade> _cannonGrenades = new Dictionary<ushort, CannonGrenade>();
 
         private readonly Vector3 _adminTowerCenter;
         private Primitive _turretBase;
         private Primitive _laserCore;
         private Primitive _minigunBarrelLeft;
         private Primitive _minigunBarrelRight;
+        private Primitive _cannonBarrel;
         private ToyLight _turretLight;
         private Vector3 _turretPivot;
         private Quaternion _currentTurretRotation = Quaternion.identity;
@@ -72,6 +83,10 @@ namespace TowerSentinel
             _isFiring = false;
             _nextAllowedFireTime = 0f;
 
+            foreach (CannonGrenade cannonGrenade in new List<CannonGrenade>(_cannonGrenades.Values))
+                SafeDestroy(cannonGrenade.Projectile);
+            _cannonGrenades.Clear();
+
             foreach (Primitive primitive in _temporaryPrimitives.ToArray())
                 SafeDestroy(primitive);
             _temporaryPrimitives.Clear();
@@ -95,6 +110,7 @@ namespace TowerSentinel
             _laserCore = null;
             _minigunBarrelLeft = null;
             _minigunBarrelRight = null;
+            _cannonBarrel = null;
             _turretLight = null;
         }
 
@@ -107,7 +123,7 @@ namespace TowerSentinel
                 origin,
                 direction.normalized,
                 maximumDistance,
-                Physics.DefaultRaycastLayers,
+                BeamCollisionMask,
                 QueryTriggerInteraction.Ignore);
 
             Array.Sort(hits, (left, right) => left.distance.CompareTo(right.distance));
@@ -117,6 +133,26 @@ namespace TowerSentinel
                     continue;
 
                 return IsPrimitive(hit.collider.gameObject);
+            }
+
+            return false;
+        }
+
+        public bool IsTowerWithinSphere(Vector3 position, float radius)
+        {
+            if (!IsActive || radius <= 0f)
+                return false;
+
+            Collider[] colliders = Physics.OverlapSphere(
+                position,
+                radius,
+                Physics.DefaultRaycastLayers,
+                QueryTriggerInteraction.Ignore);
+
+            foreach (Collider collider in colliders)
+            {
+                if (collider != null && IsPrimitive(collider.gameObject))
+                    return true;
             }
 
             return false;
@@ -181,6 +217,44 @@ namespace TowerSentinel
 
             int generation = _generation;
             Timing.RunCoroutine(RetaliationMinigunRoutine(target, generation));
+        }
+
+        public void RetaliateCannon(Player target, ProjectileType grenadeType)
+        {
+            if (grenadeType != ProjectileType.FragGrenade && grenadeType != ProjectileType.Flashbang)
+            {
+                Log.Debug($"Cannon ignored unsupported projectile type '{grenadeType}'.");
+                return;
+            }
+
+            if (!TryBeginRetaliation(target))
+                return;
+
+            int generation = _generation;
+            Timing.RunCoroutine(RetaliationCannonRoutine(target, grenadeType, generation));
+        }
+
+        public bool TryIsolateCannonExplosion(ExplodingGrenadeEventArgs ev)
+        {
+            if (ev?.Projectile == null
+                || !_cannonGrenades.TryGetValue(ev.Projectile.Serial, out CannonGrenade cannonGrenade))
+                return false;
+
+            _cannonGrenades.Remove(ev.Projectile.Serial);
+            ev.TargetsToAffect.Clear();
+
+            if (IsValidTarget(cannonGrenade.Target))
+                ev.TargetsToAffect.Add(cannonGrenade.Target);
+
+            if (Plugin.Instance.Config.Debug)
+            {
+                string targetName = IsValidTarget(cannonGrenade.Target)
+                    ? cannonGrenade.Target.Nickname
+                    : "nobody (the attacker is no longer eligible)";
+                Log.Debug($"Isolated cannon {ev.Projectile.ProjectileType} explosion to {targetName}.");
+            }
+
+            return true;
         }
 
         private void SpawnBarricades(int generation)
@@ -289,7 +363,9 @@ namespace TowerSentinel
             AddPart(PrimitiveType.Cube, new Vector3(0.6f, 0f, 0.8f), Quaternion.identity, new Vector3(0.5f, 0.3f, 0.6f), new Color(0.3f, 0.3f, 0.3f));
             _minigunBarrelLeft = AddPart(PrimitiveType.Cylinder, new Vector3(-0.95f, 0f, 1.5f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.3f, 2.2f, 0.3f), Color.black);
             _minigunBarrelRight = AddPart(PrimitiveType.Cylinder, new Vector3(0.95f, 0f, 1.5f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.3f, 2.2f, 0.3f), Color.black);
-            AddPart(PrimitiveType.Cube, new Vector3(0f, 0.6f, 0.5f), Quaternion.identity, new Vector3(0.4f, 0.4f, 0.6f), new Color(0f, 0.8f, 1f, 0.9f));
+            AddPart(PrimitiveType.Cube, new Vector3(0f, 0.85f, 0.55f), Quaternion.identity, new Vector3(0.9f, 0.65f, 0.9f), new Color(0.12f, 0.18f, 0.22f));
+            _cannonBarrel = AddPart(PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 1.65f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.65f, 2.8f, 0.65f), new Color(0.08f, 0.1f, 0.12f));
+            AddPart(PrimitiveType.Cylinder, new Vector3(0f, 1.15f, 3.1f), Quaternion.Euler(90f, 0f, 0f), new Vector3(0.85f, 0.25f, 0.85f), new Color(0.45f, 0.2f, 0.05f));
 
             _turretLight = ToyLight.Create(_turretPivot + new Vector3(0f, 2f, 0f));
             if (IsToyAlive(_turretLight))
@@ -461,6 +537,107 @@ namespace TowerSentinel
                 DestroyTemporary(tracerInner);
                 DestroyTemporary(tracerLight);
                 EndRetaliation(generation);
+            }
+        }
+
+        private IEnumerator<float> RetaliationCannonRoutine(Player target, ProjectileType grenadeType, int generation)
+        {
+            try
+            {
+                if (!CanContinueRetaliation(target, generation) || !IsToyAlive(_cannonBarrel))
+                    yield break;
+
+                Vector3 targetDirection = TargetPoint(target) - _turretPivot;
+                if (targetDirection.sqrMagnitude < 0.0001f)
+                    yield break;
+
+                AimTurret(Quaternion.LookRotation(targetDirection));
+                if (IsToyAlive(_turretLight))
+                {
+                    _turretLight.Color = new Color(1f, 0.15f, 0.8f);
+                    _turretLight.Intensity = 10f;
+                }
+
+                yield return Timing.WaitForSeconds(0.2f);
+
+                if (!CanContinueRetaliation(target, generation) || !IsToyAlive(_cannonBarrel))
+                    yield break;
+
+                if (!TryLaunchCannonGrenade(target, grenadeType))
+                    yield break;
+
+                yield return Timing.WaitForSeconds(0.25f);
+            }
+            finally
+            {
+                EndRetaliation(generation);
+            }
+        }
+
+        private bool TryLaunchCannonGrenade(Player target, ProjectileType grenadeType)
+        {
+            Projectile projectile = null;
+
+            try
+            {
+                Vector3 directionAtFire = TargetPoint(target) - _turretPivot;
+                if (directionAtFire.sqrMagnitude < 0.0001f)
+                    return false;
+
+                AimTurret(Quaternion.LookRotation(directionAtFire));
+                Vector3 muzzlePosition = _cannonBarrel.Position
+                    + (_currentTurretRotation * Vector3.forward * 1.65f);
+                float flightTime = Plugin.Instance.Config.CannonFlightTime;
+                Vector3 destination = target.Position + (Vector3.up * 0.25f);
+                Vector3 launchVelocity = ((destination - muzzlePosition) / flightTime)
+                    - (0.5f * Physics.gravity * flightTime);
+
+                projectile = Projectile.Create(grenadeType);
+                if (!(projectile is TimeGrenadeProjectile timedGrenade))
+                {
+                    SafeDestroy(projectile);
+                    return false;
+                }
+
+                timedGrenade.FuseTime = flightTime;
+                Quaternion launchRotation = launchVelocity.sqrMagnitude < 0.0001f
+                    ? _currentTurretRotation
+                    : Quaternion.LookRotation(launchVelocity);
+                projectile.Spawn(muzzlePosition, launchRotation, false, target);
+
+                if (projectile.Rigidbody == null)
+                {
+                    SafeDestroy(projectile);
+                    return false;
+                }
+
+                _cannonGrenades[projectile.Serial] = new CannonGrenade
+                {
+                    Projectile = projectile,
+                    Target = target,
+                };
+
+                Vector3 launchTorque = new Vector3(7f, 5f, 3f);
+                projectile.Rigidbody.linearVelocity = launchVelocity;
+                projectile.Rigidbody.angularVelocity = launchTorque;
+                projectile.Base.ServerOnThrown(launchTorque, launchVelocity);
+                projectile.Activate();
+
+                if (Plugin.Instance.Config.Debug)
+                    Log.Debug($"Cannon launched {grenadeType} at {target.Nickname} with fuse {flightTime:0.00}s.");
+
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (projectile != null)
+                {
+                    _cannonGrenades.Remove(projectile.Serial);
+                    SafeDestroy(projectile);
+                }
+
+                Log.Error($"Cannon launch failed: {exception}");
+                return false;
             }
         }
 
@@ -685,6 +862,21 @@ namespace TowerSentinel
             catch (Exception exception)
             {
                 Log.Debug($"Failed to destroy an admin toy cleanly: {exception.Message}");
+            }
+        }
+
+        private static void SafeDestroy(Projectile projectile)
+        {
+            if (projectile == null || projectile.Base == null)
+                return;
+
+            try
+            {
+                projectile.Destroy();
+            }
+            catch (Exception exception)
+            {
+                Log.Debug($"Failed to destroy a cannon projectile cleanly: {exception.Message}");
             }
         }
     }

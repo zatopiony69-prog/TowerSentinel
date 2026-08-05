@@ -56,6 +56,15 @@ namespace TowerSentinel.Tests
         }
 
         [TestMethod]
+        public void SelectDirectRetaliationReservesLaserForSpecialWeapons()
+        {
+            Assert.AreEqual(DirectRetaliation.Laser, Guardrails.SelectDirectRetaliation(false, true));
+            Assert.AreEqual(DirectRetaliation.Minigun, Guardrails.SelectDirectRetaliation(false, false));
+            Assert.AreEqual(DirectRetaliation.None, Guardrails.SelectDirectRetaliation(true, true));
+            Assert.AreEqual(DirectRetaliation.None, Guardrails.SelectDirectRetaliation(true, false));
+        }
+
+        [TestMethod]
         public void CanStartRetaliationRequiresAllSafetyConditions()
         {
             Assert.IsTrue(Guardrails.CanStartRetaliation(true, false, true, 10f, 10f));

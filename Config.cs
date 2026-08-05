@@ -29,6 +29,9 @@ namespace TowerSentinel
         [Description("The radius used to determine whether a grenade explosion touched the tower (in meters).")]
         public float GrenadeDetectionRadius { get; set; } = 8f;
 
+        [Description("How long a retaliatory cannon grenade stays in flight before detonating (in seconds).")]
+        public float CannonFlightTime { get; set; } = 1.75f;
+
         [Description("The minimum delay between retaliation attacks (in seconds).")]
         public float RetaliationCooldown { get; set; } = 0.75f;
 
