@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <Compile Remove="TowerSentinel.Tests\**\*.cs" />
-    <PackageReference Include="ExMod.Exiled" Version="9.14.2" PrivateAssets="all" />
+    <PackageReference Include="ExMod.Exiled" Version="9.15.2" PrivateAssets="all" />
     <Reference Include="Assembly-CSharp-firstpass">
       <HintPath>$(GameManagedPath)\Assembly-CSharp-firstpass.dll</HintPath>
       <Private>false</Private>
